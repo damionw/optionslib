@@ -7,7 +7,7 @@ processing akin to python argparse, etc
 
 ## Basic Usage ##
 
-`code()`
+`
 
 # Import library
 . "$(optionslib --lib)"
@@ -24,3 +24,4 @@ optionslib::parse::config "
 
 # Process command line arguments
 optionslib::parse::parse_arguments "$@"
+`
