@@ -92,7 +92,7 @@ do
             ;;
 
         --version)
-            casetools::version
+            optionslib::version
             shift
             exit 0
             ;;
