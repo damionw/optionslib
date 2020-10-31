@@ -7,7 +7,9 @@ processing akin to python argparse, etc
 
 ## Basic Usage ##
 
-    # Import library
+    #!/usr/bin/env bash
+
+    # Import OptionLib components
     . "$(optionslib --lib)"
 
     # Provide command description
