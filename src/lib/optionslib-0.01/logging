@@ -1,0 +1,70 @@
+#! /usr/bin/env bash
+
+first_name="${BASH_SOURCE[0]}"
+actual_name="$(readlink -f "${first_name}")"
+local_path="$(dirname "${actual_name}")"
+
+logging::set_severity() {
+    __logging_severity__="${1}"
+}
+
+logging::get_severity() {
+    echo "${__logging_severity__:-info}" | tr '[A-Z]' '[a-z]'
+}
+
+logging::get_levels() {
+    local _target="$(logging::get_severity)"
+    local _severity=
+
+    ordered_severities() {
+        sed -e 's/^[ ]*//g' -e '/^$/d' <<"        EOF"
+            fatal
+            error
+            warning
+            info
+            debug
+        EOF
+    }
+
+    ordered_severities | while read _severity
+    do
+        echo "${_severity}"
+
+        if [ "${_severity}" = "${_target}" ]
+        then
+            break
+        fi
+    done
+}
+
+logging::format() {
+    local _mode="${1}"
+    shift
+
+    if (logging::get_levels | grep -q '^'"${_mode}"'$')
+    then
+        echo "$(echo "${_mode}" | tr '[a-z]' '[A-Z]'): $*" >&2
+    fi
+}
+
+logging::fatal() {
+    logging::format fatal $@
+    exit 255
+}
+
+logging::warning() {
+    logging::format warning $@
+}
+
+logging::info() {
+    logging::format info $@
+}
+
+logging::error() {
+    logging::format error $@
+}
+
+logging::debug() {
+    logging::format debug $@
+}
+

@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+package_name=optionslib
+first_name="${BASH_SOURCE[0]}"
+actual_name="$(readlink -f "${first_name}")"
+local_path="$(dirname "${actual_name}")"
+
+#===================================================================================
+#                                Settings
+#===================================================================================
+export __OPTIONSLIB_VERSION__="$(
+    find "${local_path}/${package_name}"-[.0-9]* -maxdepth 0 -mindepth 0 -type d -printf "%f\n" |
+    awk -F- '{print $NF;}' |
+    sort -nr |
+    head -1
+)"
+
+lib_path="${local_path}/${package_name}-${__OPTIONSLIB_VERSION__}"
+
+. "${lib_path}/parse"
+. "${lib_path}/logging"
+. "${lib_path}/exceptions"
+
+optionslib::version() {
+    echo "${__OPTIONSLIB_VERSION__}"
+}
+
+hash -r

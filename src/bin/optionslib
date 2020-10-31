@@ -1,0 +1,110 @@
+#! /usr/bin/env bash
+
+first_name="${BASH_SOURCE[0]}"
+actual_name="$(readlink -f "${first_name}")"
+local_path="$(dirname "${actual_name}")"
+library_import_file="$(readlink -f "${local_path}/../lib/optionslib")"
+
+#===================================================================================
+#                          Import tools library
+#===================================================================================
+. "${library_import_file}"
+
+#===================================================================================
+#                              Logging Options
+#===================================================================================
+logging::set_severity info
+
+#===================================================================================
+#                              Help Message
+#===================================================================================
+showhelp() {
+    local _synopsis="
+        Bash Options Parsing LIbrary
+    "
+
+    local -A _keywords=(
+        [help]="Display instructions"
+    )
+
+    local _terms="$(echo "${@}" | awk -F, '{for (i=1; i <= NF; ++i) {print $i;}}')"
+    local _topic
+
+    local _contents="$(
+        echo "${_terms}" | awk -F: '{printf("%s[--%s%s]", sep, $1, (NF == 2 ? sprintf("=<%s>", $1) : "")); sep=" "}'
+        echo -en "${_synopsis:+\n}"
+        echo "${_synopsis}" | sed -e 's/^[ ]*//g' -e '/^[ ]*$/d'
+
+        echo "${_terms}" | {
+            _prefix="\n"
+
+            while read _topic
+            do
+                if [ -n "${_keywords["${_topic}"]}" ]
+                then
+                    _fill="$(for ((i=$(echo -n "${_topic}" | wc -c); i < 15; ++i)); do echo -n " "; done)"
+                    echo -e "${_prefix}--${_topic}${_fill}${_keywords["${_topic}"]}" | sed -e 's/^./    &/g'
+                    _prefix=""
+                fi
+            done
+        }
+    )"
+
+    echo "Usage: $0 ${_contents}" >&2
+}
+
+#===================================================================================
+# NOTE: There is a bug in getopts where not specifying at least one short option
+#       will cause the first non option parameter to be discarded. Here, we just
+#       use -h (help)
+#===================================================================================
+long_options=
+long_options="${long_options}${long_options:+,}help,version,lib"
+long_options="${long_options}${long_options:+,}debug,error,info,warning,fatal"
+
+OPTION_TEMP=$(getopt -a -o hv --long ${long_options} -- "$@")
+
+if [ $? != 0 ]
+then
+    logging::fatal "Invalid command line options ${OPTION_TEMP}"
+fi
+
+eval set -- "$OPTION_TEMP"
+
+#===================================================================================
+#                       Process command line parameters
+#
+# NOTE: The command line parameters are available for scripts which
+#       source this file.
+#===================================================================================
+while true
+do
+    case "$1" in
+        --debug|--info|--warning|--fatal|--error)
+            logging::set_severity "$(echo "${1}" | sed -e 's/^[\-]*//g')"
+            shift
+            ;;
+
+        --lib)
+            echo "${library_import_file}"
+            shift
+            exit 0
+            ;;
+
+        --version)
+            casetools::version
+            shift
+            exit 0
+            ;;
+
+        --)
+            shift
+            break
+            ;;
+
+        *)
+            showhelp "${long_options}" >&2
+            exit 0
+            ;;
+    esac
+done

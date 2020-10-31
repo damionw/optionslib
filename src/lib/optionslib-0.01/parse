@@ -1,0 +1,264 @@
+#!/usr/bin/env bash
+
+first_name="${BASH_SOURCE[0]}"
+actual_name="$(readlink -f "${first_name}")"
+local_path="$(dirname "${actual_name}")"
+
+optionslib::parse::options_defaults() {
+    echo "long_options= short_options= action=store_var name= description="
+}
+
+optionslib::parse::description() {
+    if [ -n "${1}" ]
+    then
+        export __OPTIONSLIB__DESCRIPTION__"=${1}"
+    elif [ -n "${__OPTIONSLIB__DESCRIPTION__}" ]
+    then
+        echo "${__OPTIONSLIB__DESCRIPTION__}"
+    else
+        echo "Undefined command"
+    fi
+}
+
+optionslib::parse::config() {
+    if [ -n "${1}" ]
+    then
+        export __OPTIONSLIB__CONFIG__"=${1}"
+    elif [ -n "${__OPTIONSLIB__CONFIG__}" ]
+    then
+        echo "${__OPTIONSLIB__CONFIG__}"
+    else
+        logging::error "Command line options have not been defined"
+    fi
+}
+
+optionslib::parse::show_help() {
+    local _long_options _short_options
+
+    if ! _long_options="$(optionslib::parse::get_long_options)"
+    then
+        return 123
+    fi
+
+    local _synopsis="
+        $(optionslib::parse::description)
+    "
+
+    local _key _value
+
+    local -A _keywords=()
+
+    while read _key _value
+    do
+        _keywords["${_key}"]="${_value}"
+    done <<< "$(optionslib::parse::get_help_keywords)"
+
+    local _terms="$(echo "${_long_options}" | awk -F, '{for (i=1; i <= NF; ++i) {print $i;}}')"
+    local _topic
+
+    local _contents="$(
+        echo "${_terms}" | awk -F: '{printf("%s[--%s%s]", sep, $1, (NF == 2 ? sprintf("=<%s>", $1) : "")); sep=" "}'
+        echo -en "${_synopsis:+\n}"
+        echo "${_synopsis}" | sed -e 's/^[ ]*//g' -e '/^[ ]*$/d'
+
+        echo "${_terms}" | {
+            _prefix="\n"
+
+            while read _topic
+            do
+                if [ -n "${_keywords["${_topic}"]}" ]
+                then
+                    _fill="$(for ((i=$(echo -n "${_topic}" | wc -c); i < 15; ++i)); do echo -n " "; done)"
+                    echo -e "${_prefix}--${_topic}${_fill}${_keywords["${_topic}"]}" | sed -e 's/^./    &/g'
+                    _prefix=""
+                fi
+            done
+        }
+    )"
+
+    echo "Usage: $0 ${_contents}" >&2
+}
+
+optionslib::parse::get_help_keywords() {
+    local _config
+    local _flag
+
+    if ! _config="$(optionslib::parse::config)"
+    then
+        return 155
+    fi
+
+    while read _row
+    do
+        
+        if [ -z "${_row}" ]
+        then
+            continue
+        elif ! eval "$(optionslib::parse::options_defaults) ${_row}"
+        then
+            continue
+        elif [ -z "${short_options}" -a -z "${long_options}" ]
+        then
+            continue
+        fi
+
+        while read _flag
+        do
+            echo "${_flag} ${description}"
+        done <<< "$(echo "${short_options},${long_options}" | awk -F, '{for (i=1; i <= NF; ++i) {print $i;}}' | sed -e 's/^--//g')"
+    done <<< "${_config}"
+}
+
+optionslib::parse::get_long_options() {
+    local _config
+    local _row
+
+    if ! _config="$(optionslib::parse::config)"
+    then
+        return 155
+    fi
+
+    echo "${_config}" | while read _row
+    do
+        if [ -n "${_row}" ]
+        then
+            (eval "${_row}" && echo "${long_options}" | awk -F, '{for (i=1; i <= NF; ++i) {print $i;}}')
+        fi
+    done |
+    sed -e 's/^--//g' |
+    awk '{printf("%s%s", sep, $1); sep=",";}' sep=
+}
+
+optionslib::parse::get_short_options() {
+    local _config
+    local _row
+
+    if ! _config="$(optionslib::parse::config)"
+    then
+        return 155
+    fi
+
+    # We expect the short options to be provided as -h or -v separated by commas
+    echo "${_config}" | while read _row
+    do
+        if [ -n "${_row}" ]
+        then
+            (eval "${_row}" && echo "${short_options}" | awk -F, '{for (i=1; i <= NF; ++i) {print $i;}}')
+        fi
+    done |
+    sed -e 's/^-//g' |
+    awk '{printf("%s", substr($1, 1, 1));}'
+}
+
+optionslib::parse::find_option_details() {
+    local _argument="${1}"
+    local _config
+    local _found
+    local _row
+
+    if ! _config="$(optionslib::parse::config)"
+    then
+        return 155
+    fi
+
+    # We expect the short options to be provided as -h or -v separated by commas
+    while read _row
+    do
+        if [ -n "${_row}" ]
+        then
+            _found=$(
+                (
+                    eval "${_row}" &&
+                    echo "${short_options}" | awk -F, '{for (i=1; i <= NF; ++i) {print $i;}}' &&
+                    echo "${long_options}" | awk -F, '{for (i=1; i <= NF; ++i) {print $i;}}'
+                ) | grep '^'"${1}"'[\:]*$'
+            )
+
+            if [ $? == 0 ]
+            then
+                if (echo "${_found}" | grep -q '[\:]')
+                then
+                    shift=2
+                else
+                    shift=1
+                fi
+
+                echo "${_row} shift=${shift}"
+                return 0
+            fi
+        fi
+    done <<< "${_config}"
+
+    return 121
+}
+
+optionslib::parse::parse_arguments() {
+    local _long_options _short_options
+
+    if ! _long_options="$(optionslib::parse::get_long_options)"
+    then
+        return 123
+    elif ! _short_options="$optionslib::parse::get_short_options)"
+    then
+        return 124
+    fi
+
+    #===================================================================================
+    # NOTE: There is a bug in getopts where not specifying at least one short option
+    #       will cause the first non option parameter to be discarded. Here, we just
+    #       use -h (help)
+    #===================================================================================
+    if ! OPTION_TEMP=$(getopt -a -o ${_short_options:-h} --long ${_long_options} -- "$@")
+    then
+        logging::error "Invalid command line options ${OPTION_TEMP}"
+        return $?
+    fi
+
+    eval set -- "$OPTION_TEMP"
+
+    local _details
+
+    while true
+    do
+        if [ "$1" = "--" ]
+        then
+            shift
+            break
+        fi
+
+        if ! _details="$(optionslib::parse::find_option_details "$1")"
+        then
+            action="show_help"
+        else
+            eval "$(optionslib::parse::options_defaults) ${_details}"
+        fi
+
+        local _value=
+
+        if [ "${shift}" = 1 ]
+        then
+            _value=true
+        else
+            _value="${2}"
+        fi
+
+        case "${action:-store_var}" in
+            "store_var")
+                name="${name:-$(echo "${long_options}" | sed -e 's/[\:]*,.*$//g' -e 's/^[\-]*//g')}"
+                eval "${name}='${_value}'"
+                ;;
+
+            "show_help")
+                optionslib::parse::show_help
+                exit 0
+                ;;
+
+            "command")
+                name="${name:-$(echo "${long_options}" | sed -e 's/[\:]*,.*$//g' -e 's/^[\-]*//g')}"
+                "${name}" "${_value}"
+                ;;
+        esac
+
+        shift ${shift:-1}
+    done
+}

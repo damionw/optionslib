@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+. $(optionslib --lib)
+
+start_service() {
+    logging::info "RUNNER: ${@}"
+}
+
+optionslib::parse::description "The demo to end all demos"
+
+optionslib::parse::config "
+    long_options=--help short_options=-h action=show_help description='show help options'
+    long_options=--start: action=store_var name=start_option description='start the service'
+    long_options=--go: action=command name=start_service description='Do nothing'
+"
+
+optionslib::parse::parse_arguments "$@"
+
+echo "VALUE = ${start_option}"
