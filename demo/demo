@@ -14,6 +14,9 @@ optionslib::parse::config "
     long_options=--go: action=command name=start_service description='Do nothing'
 "
 
-optionslib::parse::parse_arguments "$@"
+if ! optionslib::parse::parse_arguments "$@"
+then
+    exit 255
+fi
 
 echo "VALUE = ${start_option}"

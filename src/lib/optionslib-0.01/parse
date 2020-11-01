@@ -58,7 +58,7 @@ optionslib::parse::show_help() {
 
     local _contents="$(
         echo "${_terms}" | awk -F: '{printf("%s[--%s%s]", sep, $1, (NF == 2 ? sprintf("=<%s>", $1) : "")); sep=" "}'
-        echo -en "${_synopsis:+\n}"
+        echo -en "${_synopsis:+\n\n}"
         echo "${_synopsis}" | sed -e 's/^[ ]*//g' -e '/^[ ]*$/d'
 
         echo "${_terms}" | {
@@ -193,6 +193,8 @@ optionslib::parse::find_option_details() {
 }
 
 optionslib::parse::parse_arguments() {
+    # Command line options provided in $@
+
     local _long_options _short_options
 
     if ! _long_options="$(optionslib::parse::get_long_options)"
@@ -208,10 +210,15 @@ optionslib::parse::parse_arguments() {
     #       will cause the first non option parameter to be discarded. Here, we just
     #       use -h (help)
     #===================================================================================
-    if ! OPTION_TEMP=$(getopt -a -o ${_short_options:-h} --long ${_long_options} -- "$@")
+    OPTION_TEMP=$(getopt --options "${_short_options:-h}" --longoptions "${_long_options}" -- "$@")
+    local _status=$?
+
+    if [ $_status != 0 ]
     then
-        logging::error "Invalid command line options ${OPTION_TEMP}"
-        return $?
+        logging::error "Invalid command line options ($status) [$@]"
+        optionslib::parse::show_help
+        return $_status
+        
     fi
 
     eval set -- "$OPTION_TEMP"
