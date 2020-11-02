@@ -200,7 +200,7 @@ optionslib::parse::parse_arguments() {
     if ! _long_options="$(optionslib::parse::get_long_options)"
     then
         return 123
-    elif ! _short_options="$optionslib::parse::get_short_options)"
+    elif ! _short_options="$(optionslib::parse::get_short_options)"
     then
         return 124
     fi
