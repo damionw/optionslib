@@ -3,14 +3,16 @@
 . $(optionslib --lib)
 
 start_service() {
-    logging::info "RUNNER: ${@}"
+    logging::info "STARTING RUNNER: ${@}"
 }
+
+config_options=
 
 optionslib::parse::description "The demo to end all demos"
 
 optionslib::parse::config "
     long_options=--help short_options=-h action=show_help description='show help options'
-    long_options=--start: action=store_var name=start_option description='start the service'
+    long_options=--config: action=store_var name=config_options description='service configuration' required=true
     long_options=--go: action=command name=start_service description='Do nothing'
 "
 
@@ -19,4 +21,4 @@ then
     exit 255
 fi
 
-echo "VALUE = ${start_option}"
+echo "CONFIG=${config_options}"

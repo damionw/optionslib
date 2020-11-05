@@ -5,7 +5,7 @@ actual_name="$(readlink -f "${first_name}")"
 local_path="$(dirname "${actual_name}")"
 
 optionslib::parse::options_defaults() {
-    echo "long_options= short_options= action=store_var name= description="
+    echo "long_options= short_options= action=store_var name= description= required=false"
 }
 
 optionslib::parse::description() {
@@ -28,7 +28,7 @@ optionslib::parse::config() {
     then
         echo "${__OPTIONSLIB__CONFIG__}"
     else
-        logging::error "Command line options have not been defined"
+        echo "Command line options have not been defined" >&2
     fi
 }
 
@@ -150,6 +150,25 @@ optionslib::parse::get_short_options() {
     awk '{printf("%s", substr($1, 1, 1));}'
 }
 
+optionslib::parse::get_required_options() {
+    local _config
+    local _row
+
+    if ! _config="$(optionslib::parse::config)"
+    then
+        return 155
+    fi
+
+    # We expect the short options to be provided as -h or -v separated by commas
+    echo "${_config}" | while read _row
+    do
+        if [ -n "${_row}" ]
+        then
+            (eval "${_row}" && ${required:-false} && echo "${long_options},${short_options}")
+        fi
+    done
+}
+
 optionslib::parse::find_option_details() {
     local _argument="${1}"
     local _config
@@ -205,6 +224,14 @@ optionslib::parse::parse_arguments() {
         return 124
     fi
 
+    local -A _required_options=()
+    local _key
+
+    while read _key
+    do
+        [ -n "${_key}" ] && _required_options["${_key}"]="$(echo "${_key}" | awk -F, '{print $1;}')"
+    done <<< "$(optionslib::parse::get_required_options)"
+
     #===================================================================================
     # NOTE: There is a bug in getopts where not specifying at least one short option
     #       will cause the first non option parameter to be discarded. Here, we just
@@ -215,15 +242,12 @@ optionslib::parse::parse_arguments() {
 
     if [ $_status != 0 ]
     then
-        logging::error "Invalid command line options ($status) [$@]"
+        echo -e "\nInvalid command line options ($status) [$@]\n" >&2
         optionslib::parse::show_help
         return $_status
-        
     fi
 
     eval set -- "$OPTION_TEMP"
-
-    local _details
 
     while true
     do
@@ -232,6 +256,8 @@ optionslib::parse::parse_arguments() {
             shift
             break
         fi
+
+        local _details
 
         if ! _details="$(optionslib::parse::find_option_details "$1")"
         then
@@ -248,6 +274,9 @@ optionslib::parse::parse_arguments() {
         else
             _value="${2}"
         fi
+
+        # Satisfy required option
+        unset _required_options["${long_options},${short_options}"]
 
         case "${action:-store_var}" in
             "store_var")
@@ -268,4 +297,11 @@ optionslib::parse::parse_arguments() {
 
         shift ${shift:-1}
     done
+
+    if [ "${#_required_options[@]}" -gt 0 ]
+    then
+        echo -e "\nRequired key(s) [${_required_options[@]}] have not been supplied\n" >&2
+        optionslib::parse::show_help
+        exit 1
+    fi
 }
