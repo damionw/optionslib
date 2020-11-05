@@ -164,7 +164,7 @@ optionslib::parse::get_required_options() {
     do
         if [ -n "${_row}" ]
         then
-            (eval "${_row}" && ${required:-false} && echo "${long_options},${short_options}")
+            (eval "${_row}" && test "${required:-false}" = true && echo "${long_options},${short_options}")
         fi
     done
 }
