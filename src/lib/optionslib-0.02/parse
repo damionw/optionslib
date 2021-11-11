@@ -90,7 +90,7 @@ optionslib::parse::get_help_keywords() {
 
     while read _row
     do
-        
+
         if [ -z "${_row}" ]
         then
             continue
@@ -291,7 +291,7 @@ optionslib::parse::parse_arguments() {
 
             "command")
                 name="${name:-$(echo "${long_options}" | sed -e 's/[\:]*,.*$//g' -e 's/^[\-]*//g')}"
-                "${name}" "${_value}"
+                "${name}" "${_value}" || return $?
                 ;;
         esac
 
