@@ -281,7 +281,13 @@ optionslib::parse::parse_arguments() {
         case "${action:-store_var}" in
             "store_var")
                 name="${name:-$(echo "${long_options}" | sed -e 's/[\:]*,.*$//g' -e 's/^[\-]*//g')}"
-                eval "${name}='${_value}'"
+                
+                if [ -z "${_value}" ]
+                then
+                    eval echo "\$${_name}"
+                else
+                    eval "${name}='${_value}'"
+                fi
                 ;;
 
             "show_help")
