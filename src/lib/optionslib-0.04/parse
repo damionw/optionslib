@@ -284,7 +284,7 @@ optionslib::parse::parse_arguments() {
                 
                 if [ -z "${_value}" ]
                 then
-                    eval echo "\$${_name}"
+                    eval echo "\$${name}"
                 else
                     eval "${name}='${_value}'"
                 fi
