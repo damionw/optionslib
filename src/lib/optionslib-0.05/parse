@@ -20,6 +20,16 @@ optionslib::parse::description() {
     fi
 }
 
+optionslib::parse::extra_arguments() {
+    if [ -n "${1}" ]
+    then
+        export __OPTIONSLIB__EXTRAS__"=${1}"
+    elif [ -n "${__OPTIONSLIB__EXTRAS__}" ]
+    then
+        echo "${__OPTIONSLIB__EXTRAS__}"
+    fi
+}
+
 optionslib::parse::config() {
     if [ -n "${1}" ]
     then
@@ -311,12 +321,14 @@ optionslib::parse::parse_arguments() {
         exit 1
     fi
 
-    local _parameter
+    local _parameter _extras_name _index
 
-    for _parameter in "$@"
-    do
-        extra_option_arguments[${#extra_option_arguments[@]}]="${_parameter}"
-    done
+    if _extras_name="$(optionslib::parse::extra_arguments)" && test -n "${_extras_name}"
+    then
+        for _parameter in "$@"
+        do
+            _index=$(eval echo '${#'"${_extras_name}"'[@]}')
+            eval "${_extras_name}"'['"${_index}"']='"$_parameter"
+        done
+    fi
 }
-
-declare -A extra_option_arguments=()
