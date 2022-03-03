@@ -310,4 +310,13 @@ optionslib::parse::parse_arguments() {
         optionslib::parse::show_help
         exit 1
     fi
+
+    local _parameter
+
+    for _parameter in "$@"
+    do
+        extra_option_arguments[${#extra_option_arguments[@]}]="${_parameter}"
+    done
 }
+
+declare -A extra_option_arguments=()
