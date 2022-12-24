@@ -7,8 +7,12 @@ start_service() {
 }
 
 config_options=
+extra_option_arguments=()
 
 optionslib::parse::description "The demo to end all demos"
+
+# Tell the library where to put extra command line arguments
+optionslib::parse::extra_arguments extra_option_arguments
 
 optionslib::parse::config "
     long_options=--help short_options=-h action=show_help description='show help options'
@@ -16,9 +20,10 @@ optionslib::parse::config "
     long_options=--go: action=command name=start_service description='Do nothing'
 "
 
-if ! optionslib::parse::parse_arguments "$@"
-then
-    exit 255
-fi
+optionslib::parse::parse_arguments "$@" || {
+    exit $?
+}
 
 echo "CONFIG=${config_options}"
+
+echo "EXTRA ARGUMENTS=${extra_option_arguments[@]}"
