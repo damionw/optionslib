@@ -328,7 +328,7 @@ optionslib::parse::parse_arguments() {
         for _parameter in "$@"
         do
             _index=$(eval echo '${#'"${_extras_name}"'[@]}')
-            eval "${_extras_name}"'['"${_index}"']='"$_parameter"
+            eval "${_extras_name}"'['"${_index}"']='"'$_parameter'"
         done
     fi
 }
